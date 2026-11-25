@@ -320,9 +320,9 @@
       ],
       Kutipan_Derma: [
         { key: 'Tarikh', label: 'Tarikh Kutipan', type: 'date', required: true },
-        { key: 'Jenis', label: 'Jenis Kutipan', type: 'select', options: ['Online', 'Tabung', 'Kutipan Jumaat'], required: true },
+        { key: 'Jenis', label: 'Jenis Kutipan', type: 'select', options: ['Online', 'Tabung', 'Kutipan Jumaat', 'Perbelanjaan'], required: true },
         { key: 'Jumlah_RM', label: 'Jumlah (RM)', type: 'number', required: true },
-        { key: 'Catatan', label: 'Catatan (cth: Minggu 1 / QR DuitNow)', type: 'text' }
+        { key: 'Catatan', label: 'Catatan (cth: Minggu 1 / Bil Elektrik)', type: 'text' }
       ],
       Users: [
         { key: 'Nama', label: 'Nama Penuh', type: 'text', required: true },
@@ -551,28 +551,45 @@
         const totOnline = sumBy('Online');
         const totTabung = sumBy('Tabung');
         const totJumaat = sumBy('Kutipan Jumaat');
-        const totSemua = totOnline + totTabung + totJumaat;
+        const totBelanja = sumBy('Perbelanjaan');
+        const totSemua = (totOnline + totTabung + totJumaat) - totBelanja;
 
         area.innerHTML = `
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
             <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
               <p class="text-xs font-bold uppercase text-emerald-700">Jumlah Keseluruhan</p>
-              <p class="text-2xl font-extrabold text-emerald-950 mt-1">${formatRM(totSemua)}</p>
+              <p class="text-xl font-extrabold text-emerald-950 mt-1">${formatRM(totSemua)}</p>
             </div>
             <div class="bg-sky-50 border border-sky-200 rounded-2xl p-4">
               <p class="text-xs font-bold uppercase text-sky-700">Derma Online</p>
-              <p class="text-2xl font-extrabold text-sky-950 mt-1">${formatRM(totOnline)}</p>
+              <p class="text-xl font-extrabold text-sky-950 mt-1">${formatRM(totOnline)}</p>
             </div>
             <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
               <p class="text-xs font-bold uppercase text-amber-700">Tabung Masjid</p>
-              <p class="text-2xl font-extrabold text-amber-950 mt-1">${formatRM(totTabung)}</p>
+              <p class="text-xl font-extrabold text-amber-950 mt-1">${formatRM(totTabung)}</p>
             </div>
             <div class="bg-teal-50 border border-teal-200 rounded-2xl p-4">
               <p class="text-xs font-bold uppercase text-teal-700">Kutipan Jumaat</p>
-              <p class="text-2xl font-extrabold text-teal-950 mt-1">${formatRM(totJumaat)}</p>
+              <p class="text-xl font-extrabold text-teal-950 mt-1">${formatRM(totJumaat)}</p>
+            </div>
+            <div class="bg-rose-50 border border-rose-200 rounded-2xl p-4">
+              <p class="text-xs font-bold uppercase text-rose-700">Perbelanjaan</p>
+              <p class="text-xl font-extrabold text-rose-900 mt-1">- ${formatRM(totBelanja)}</p>
             </div>
           </div>
-          ${rows.length ? buildSimpleTable(['Tarikh', 'Jenis Kutipan', 'Jumlah', 'Catatan'], rows.map(r => [r.Tarikh, r.Jenis, formatRM(r.Jumlah_RM), r.Catatan])) : emptyMsg}
+          ${rows.length ? buildSimpleTable(
+            ['Tarikh', 'Jenis Transaksi', 'Jumlah', 'Catatan'],
+            rows.map(r => [
+              r.Tarikh,
+              r.Jenis === 'Perbelanjaan'
+                ? `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700">Perbelanjaan</span>`
+                : r.Jenis,
+              r.Jenis === 'Perbelanjaan'
+                ? `<span class="font-bold text-rose-600">- ${formatRM(r.Jumlah_RM)}</span>`
+                : `<span class="font-bold text-emerald-700">+ ${formatRM(r.Jumlah_RM)}</span>`,
+              r.Catatan
+            ])
+          ) : emptyMsg}
         `;
       }
     }
