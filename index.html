@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MiHRAB — Mosque Imam Harmonised Roster & Administration Board</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .glass { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px); }
+    .fade-in { animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- TOP NAVIGATION -->
+  <header class="bg-emerald-950 text-white sticky top-0 z-40 shadow-lg border-b border-emerald-800/60">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-md">
+            <i data-lucide="moon-star" class="w-5 h-5 text-emerald-950"></i>
+          </div>
+          <div>
+            <h1 class="font-extrabold text-lg tracking-tight leading-none">MiHRAB</h1>
+            <p id="mosqueNameHeader" class="text-[11px] text-emerald-300 font-medium">Masjid Al-MiHRAB</p>
+          </div>
+        </div>
+
+        <nav class="flex items-center gap-1 sm:gap-2">
+          <button onclick="switchMainTab('public')" id="nav-public" class="nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 bg-emerald-800 text-white">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i><span class="hidden sm:inline">Paparan Umum</span>
+          </button>
+          <button onclick="switchMainTab('checkin')" id="nav-checkin" class="nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 text-emerald-200 hover:bg-emerald-900">
+            <i data-lucide="check-circle-2" class="w-4 h-4"></i><span class="hidden sm:inline">Sahkan Kehadiran</span>
+          </button>
+          <button onclick="switchMainTab('admin')" id="nav-admin" class="nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 text-emerald-200 hover:bg-emerald-900">
+            <i data-lucide="shield-check" class="w-4 h-4"></i><span class="hidden sm:inline">Master Admin</span>
+          </button>
+          <button onclick="loadAllData()" title="Muat Semula Data" class="p-2 rounded-lg text-emerald-300 hover:bg-emerald-900 hover:text-white transition">
+            <i data-lucide="refresh-cw" id="refreshIcon" class="w-4 h-4"></i>
+          </button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden max-w-sm px-4 py-3 rounded-xl shadow-xl text-sm font-semibold text-white flex items-center gap-2.5 fade-in"></div>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ==================== 1. PAPARAN UMUM ==================== -->
+    <section id="view-public" class="space-y-6 fade-in">
+      <!-- Hero & Waktu Solat -->
+      <div class="bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-400/20 text-amber-300 border border-amber-400/30 mb-2">
+              <i data-lucide="clock" class="w-3.5 h-3.5"></i> Waktu Solat Rasmi JAKIM (<span id="zoneLabel">WLY01</span>)
+            </span>
+            <h2 class="text-2xl font-extrabold tracking-tight" id="todayDateLabel">Memuatkan tarikh...</h2>
+          </div>
+
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 bg-emerald-950/40 border border-white/10 rounded-2xl px-4 py-3">
+            <div>
+              <p class="text-[11px] text-emerald-200 uppercase tracking-wider font-semibold">Masa Semasa</p>
+              <p id="liveClock" class="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight text-white">--:--:--</p>
+            </div>
+            <div class="hidden sm:block w-px h-10 bg-white/15"></div>
+            <div>
+              <p class="text-[11px] text-emerald-200 uppercase tracking-wider font-semibold mb-1">Solat Seterusnya</p>
+              <div id="nextPrayerCountdown" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/50 text-amber-300 text-xs sm:text-sm font-bold">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                <span>Mengira waktu...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="prayerTimesGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
+          <!-- Diisi oleh JS -->
+        </div>
+      </div>
+
+      <!-- Sub-tab Paparan Umum -->
+      <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+        <button onclick="switchPublicSubTab('harian')" id="pub-tab-harian" class="pub-tab px-4 py-2 rounded-xl text-sm font-bold bg-emerald-700 text-white shadow-sm">Jadual Harian</button>
+        <button onclick="switchPublicSubTab('jumaat')" id="pub-tab-jumaat" class="pub-tab px-4 py-2 rounded-xl text-sm font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100">Imam Jumaat</button>
+        <button onclick="switchPublicSubTab('yasiin')" id="pub-tab-yasiin" class="pub-tab px-4 py-2 rounded-xl text-sm font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100">Bacaan Yasiin</button>
+        <button onclick="switchPublicSubTab('ramadhan')" id="pub-tab-ramadhan" class="pub-tab px-4 py-2 rounded-xl text-sm font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100">Ramadhan</button>
+        <button onclick="switchPublicSubTab('program')" id="pub-tab-program" class="pub-tab px-4 py-2 rounded-xl text-sm font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100">Program Tahunan</button>
+      </div>
+
+      <div id="publicContentArea" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <p class="text-center text-slate-400 py-10">Memuatkan data dari Google Sheets...</p>
+      </div>
+    </section>
+
+    <!-- ==================== 2. PENGESAHAN KEHADIRAN ==================== -->
+    <section id="view-checkin" class="hidden space-y-6 fade-in">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-xl font-extrabold text-slate-900">Pengesahan Kehadiran Imam & Bilal</h2>
+            <p class="text-sm text-slate-500">Setiap waktu & peranan hanya boleh disahkan <strong>1 kali sahaja</strong>. Gunakan pilihan Petugas Ganti jika menggantikan petugas asal.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">Tapis Tarikh:</label>
+            <input type="date" id="checkinDateFilter" onchange="renderCheckinView()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 outline-none">
+          </div>
+        </div>
+
+        <div id="checkinList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Diisi oleh JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 3. PANEL MASTER ADMIN ==================== -->
+    <section id="view-admin" class="hidden space-y-6 fade-in">
+      <!-- Skrin Log Masuk Admin -->
+      <div id="adminLoginBox" class="max-w-md mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8 text-center mt-8">
+        <div class="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="lock" class="w-7 h-7"></i>
+        </div>
+        <h2 class="text-xl font-extrabold text-slate-900 mb-1">Akses Master Admin</h2>
+        <p class="text-sm text-slate-500 mb-6">Masukkan PIN Admin untuk mengurus jadual, program, dan petugas.</p>
+        <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+          <input type="password" id="adminPinInput" placeholder="Masukkan PIN (cth: 1234)" required
+            class="w-full text-center tracking-widest text-lg font-bold border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-600 outline-none">
+          <button type="submit" id="adminLoginBtn" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-xl shadow transition">
+            Log Masuk
+          </button>
+        </form>
+      </div>
+
+      <!-- Dashboard Admin (Selepas Login) -->
+      <div id="adminDashboard" class="hidden space-y-5">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-600">Mod Pentadbir Aktif</span>
+            <h2 class="text-xl font-extrabold text-slate-900" id="adminWelcomeName">Master Admin</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openCrudModal('create')" class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5 shadow-sm">
+              <i data-lucide="plus" class="w-4 h-4"></i> Tambah Rekod
+            </button>
+            <button onclick="logoutAdmin()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5">
+              <i data-lucide="log-out" class="w-4 h-4"></i> Keluar
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab Modul Admin -->
+        <div class="flex flex-wrap gap-2">
+          <button onclick="switchAdminSheet('Jadual_Harian')" id="adm-tab-Jadual_Harian" class="adm-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-700 text-white">Jadual Harian</button>
+          <button onclick="switchAdminSheet('Jadual_Jumaat')" id="adm-tab-Jadual_Jumaat" class="adm-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-600">Jadual Jumaat</button>
+          <button onclick="switchAdminSheet('Jadual_Yasiin')" id="adm-tab-Jadual_Yasiin" class="adm-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-600">Bacaan Yasiin</button>
+          <button onclick="switchAdminSheet('Jadual_Ramadhan')" id="adm-tab-Jadual_Ramadhan" class="adm-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-600">Ramadhan</button>
+          <button onclick="switchAdminSheet('Program_Tahunan')" id="adm-tab-Program_Tahunan" class="adm-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-600">Program Tahunan</button>
+          <button onclick="switchAdminSheet('Users')" id="adm-tab-Users" class="adm-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-600">Admin & Petugas</button>
+        </div>
+
+        <div id="adminTableContainer" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto p-4">
+          <!-- Jadual CRUD diisi oleh JS -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== MODAL PENGESAHAN KEHADIRAN ==================== -->
+  <div id="checkinModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl fade-in">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-extrabold text-slate-900" id="checkinModalTitle">Sahkan Kehadiran</h3>
+        <button onclick="closeCheckinModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <p id="checkinModalSub" class="text-sm text-slate-500 mb-4"></p>
+
+      <form onsubmit="submitCheckin(event)" class="space-y-4">
+        <input type="hidden" id="ci-id">
+        <input type="hidden" id="ci-role">
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">PIN Petugas</label>
+          <input type="password" id="ci-pin" required placeholder="Masukkan PIN anda"
+            class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-emerald-600 outline-none">
+        </div>
+
+        <label class="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 cursor-pointer">
+          <input type="checkbox" id="ci-isSub" onchange="toggleSubFields()" class="w-4 h-4 accent-amber-600 rounded">
+          <span class="text-sm font-bold text-amber-900">Saya adalah Petugas Ganti hari ini</span>
+        </label>
+
+        <div id="subFields" class="hidden space-y-3 pl-2 border-l-2 border-amber-400">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Nama Petugas Ganti</label>
+            <input type="text" id="ci-subName" placeholder="Nama penuh pengganti"
+              class="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Sebab Gantian</label>
+            <input type="text" id="ci-subReason" placeholder="Cth: Petugas asal uzur / urusan kecemasan"
+              class="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeCheckinModal()" class="flex-1 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-600 hover:bg-slate-50">Batal</button>
+          <button type="submit" id="ci-submitBtn" class="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold shadow">Sahkan & Kunci</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL CRUD ADMIN ==================== -->
+  <div id="crudModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto fade-in">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-extrabold text-slate-900" id="crudModalTitle">Tambah Rekod</h3>
+        <button onclick="closeCrudModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="crudForm" onsubmit="submitCrudForm(event)" class="space-y-3.5">
+        <div id="crudFields" class="space-y-3"></div>
+        <div class="flex gap-2 pt-3">
+          <button type="button" onclick="closeCrudModal()" class="flex-1 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-600 hover:bg-slate-50">Batal</button>
+          <button type="submit" id="crudSubmitBtn" class="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold shadow">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400 mt-10">
+    MiHRAB — Mosque Imam Harmonised Roster & Administration Board &copy; <span id="yearNow"></span>
+  </footer>
+
+  <!-- SCRIPTS -->
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    // ==================== STATE ====================
+    let db = {
+      Users: [], Jadual_Harian: [], Jadual_Jumaat: [],
+      Jadual_Yasiin: [], Jadual_Ramadhan: [], Program_Tahunan: []
+    };
+    let currentPublicTab = 'harian';
+    let currentAdminSheet = 'Jadual_Harian';
+    let adminSession = null; // { pin, user }
+    let crudMode = 'create';
+    let editingId = null;
+
+    // Skema lajur untuk borang CRUD Admin
+    const SHEET_SCHEMAS = {
+      Jadual_Harian: [
+        { key: 'Tarikh', label: 'Tarikh', type: 'date', required: true },
+        { key: 'Waktu', label: 'Waktu Solat', type: 'select', options: ['Subuh', 'Zohor', 'Asar', 'Maghrib', 'Isyak'], required: true },
+        { key: 'Imam', label: 'Nama Imam', type: 'text', required: true },
+        { key: 'Bilal', label: 'Nama Bilal', type: 'text', required: true },
+        { key: 'Status_Imam', label: 'Status Imam (Kosongkan untuk Reset)', type: 'select', options: ['', 'Disahkan', 'Ganti'] },
+        { key: 'Status_Bilal', label: 'Status Bilal (Kosongkan untuk Reset)', type: 'select', options: ['', 'Disahkan', 'Ganti'] }
+      ],
+      Jadual_Jumaat: [
+        { key: 'Tarikh', label: 'Tarikh Jumaat', type: 'date', required: true },
+        { key: 'Khatib_Imam', label: 'Khatib / Imam', type: 'text', required: true },
+        { key: 'Bilal', label: 'Bilal', type: 'text', required: true },
+        { key: 'Tajuk_Khutbah', label: 'Tajuk Khutbah', type: 'text', required: true }
+      ],
+      Jadual_Yasiin: [
+        { key: 'Tarikh', label: 'Tarikh (Malam Jumaat)', type: 'date', required: true },
+        { key: 'Ketua_Yasiin', label: 'Ketua Bacaan Yasiin', type: 'text', required: true },
+        { key: 'Tahlil', label: 'Ketua Tahlil', type: 'text' },
+        { key: 'Catatan', label: 'Catatan', type: 'text' }
+      ],
+      Jadual_Ramadhan: [
+        { key: 'Malam', label: 'Malam Ke-', type: 'text', required: true },
+        { key: 'Tarikh', label: 'Tarikh', type: 'date', required: true },
+        { key: 'Imam_Terawih', label: 'Imam Terawih', type: 'text', required: true },
+        { key: 'Bilal_Terawih', label: 'Bilal Terawih', type: 'text', required: true },
+        { key: 'Penceramah', label: 'Penceramah Tazkirah', type: 'text' }
+      ],
+      Program_Tahunan: [
+        { key: 'Tajuk', label: 'Tajuk Program', type: 'text', required: true },
+        { key: 'Tarikh', label: 'Tarikh', type: 'date', required: true },
+        { key: 'Masa', label: 'Masa (cth: 8:00 Malam)', type: 'text', required: true },
+        { key: 'Kategori', label: 'Kategori', type: 'select', options: ['Kuliah', 'Ceramah Perdana', 'Gotong-Royong', 'Majlis Ilmu', 'Lain-lain'], required: true },
+        { key: 'Penceramah', label: 'Penceramah / Penyelaras', type: 'text' },
+        { key: 'Lokasi', label: 'Lokasi', type: 'text' }
+      ],
+      Users: [
+        { key: 'Nama', label: 'Nama Penuh', type: 'text', required: true },
+        { key: 'Peranan', label: 'Peranan', type: 'select', options: ['Master Admin', 'Admin', 'Imam', 'Bilal'], required: true },
+        { key: 'PIN_Hash', label: 'PIN Log Masuk (Kosongkan jika tidak tukar)', type: 'password' },
+        { key: 'Telefon', label: 'No. Telefon', type: 'text' },
+        { key: 'Status', label: 'Status', type: 'select', options: ['Aktif', 'Tidak Aktif'], required: true }
+      ]
+    };
+
+    // ==================== INIT ====================
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      document.getElementById('yearNow').textContent = new Date().getFullYear();
+      document.getElementById('mosqueNameHeader').textContent = MIHRAB_CONFIG.MOSQUE_NAME;
+      document.getElementById('zoneLabel').textContent = MIHRAB_CONFIG.PRAYER_ZONE;
+
+      const todayISO = new Date().toISOString().split('T')[0];
+      document.getElementById('checkinDateFilter').value = todayISO;
+
+      startClock();
+      loadPrayerTimes();
+      loadAllData();
+    });
+
+    function showToast(msg, type = 'success') {
+      const el = document.getElementById('toast');
+      el.className = `fixed bottom-5 right-5 z-50 max-w-sm px-4 py-3 rounded-xl shadow-xl text-sm font-semibold text-white flex items-center gap-2.5 fade-in ${
+        type === 'error' ? 'bg-rose-600' : type === 'warn' ? 'bg-amber-600' : 'bg-emerald-700'
+      }`;
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 3500);
+    }
+
+    // ==================== DATA LOADING ====================
+    let todayPrayers = [];
+    let currentNextPrayerName = '';
+
+    function startClock() {
+      const update = () => {
+        const now = new Date();
+        document.getElementById('liveClock').textContent = now.toLocaleTimeString('ms-MY', { hour12: false });
+        document.getElementById('todayDateLabel').textContent = now.toLocaleDateString('ms-MY', {
+          weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        });
+        updateNextPrayerCountdown();
+      };
+      update();
+      setInterval(update, 1000);
+    }
+
+    async function loadPrayerTimes() {
+      const grid = document.getElementById('prayerTimesGrid');
+      try {
+        const res = await MihrabAPI.getPrayerTimes();
+        if (res.status === 'success' && res.data && res.data.prayerTime && res.data.prayerTime.length > 0) {
+          const p = res.data.prayerTime[0];
+          todayPrayers = [
+            { name: 'Imsak', time: (p.imsak || '').slice(0, 5), isSolat: false },
+            { name: 'Subuh', time: (p.fajr || '').slice(0, 5), isSolat: true },
+            { name: 'Zohor', time: (p.dhuhr || '').slice(0, 5), isSolat: true },
+            { name: 'Asar', time: (p.asr || '').slice(0, 5), isSolat: true },
+            { name: 'Maghrib', time: (p.maghrib || '').slice(0, 5), isSolat: true },
+            { name: 'Isyak', time: (p.isha || '').slice(0, 5), isSolat: true }
+          ];
+          updateNextPrayerCountdown(true);
+        }
+      } catch (e) {
+        grid.innerHTML = `<p class="col-span-6 text-xs text-emerald-200">Waktu solat JAKIM tidak dapat dimuatkan buat masa ini.</p>`;
+      }
+    }
+
+    function renderPrayerCards(nextName) {
+      const grid = document.getElementById('prayerTimesGrid');
+      grid.innerHTML = todayPrayers.map(i => {
+        const isNext = i.name === nextName;
+        return `
+          <div class="relative rounded-xl p-3 text-center transition ${
+            isNext
+              ? 'bg-emerald-950/90 border-2 border-amber-400 shadow-lg shadow-amber-400/15'
+              : 'bg-white/10 border border-white/15 backdrop-blur-sm'
+          }">
+            ${isNext ? `<span class="absolute -top-2.5 right-2 bg-amber-400 text-emerald-950 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wide shadow">Seterusnya</span>` : ''}
+            <p class="text-xs font-semibold uppercase ${isNext ? 'text-amber-300' : 'text-emerald-200'}">${i.name}</p>
+            <p class="text-lg font-extrabold mt-0.5 ${isNext ? 'text-white' : 'text-white'}">${i.time || '--:--'}</p>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateNextPrayerCountdown(forceRender = false) {
+      if (!todayPrayers.length) return;
+      const now = new Date();
+      const solatList = todayPrayers.filter(p => p.isSolat && p.time);
+      let nextPrayer = null;
+      let targetDate = null;
+
+      for (const p of solatList) {
+        const [hh, mm] = p.time.split(':').map(Number);
+        const dt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
+        if (dt > now) {
+          nextPrayer = p;
+          targetDate = dt;
+          break;
+        }
+      }
+
+      // Jika sudah lepas Isyak, kira ke Subuh esok
+      if (!nextPrayer && solatList.length > 0) {
+        nextPrayer = solatList[0];
+        const [hh, mm] = nextPrayer.time.split(':').map(Number);
+        targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, hh, mm, 0);
+      }
+
+      if (!nextPrayer) return;
+
+      const diffSec = Math.max(0, Math.floor((targetDate - now) / 1000));
+      const hrs = Math.floor(diffSec / 3600);
+      const mins = Math.floor((diffSec % 3600) / 60);
+      const secs = diffSec % 60;
+
+      const timeText = hrs > 0
+        ? `${hrs} jam ${mins} min ${secs} saat`
+        : `${mins} min ${secs} saat`;
+
+      const cdEl = document.getElementById('nextPrayerCountdown');
+      if (cdEl) {
+        cdEl.innerHTML = `
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span>${nextPrayer.name} dalam ${timeText}</span>
+        `;
+      }
+
+      if (forceRender || currentNextPrayerName !== nextPrayer.name) {
+        currentNextPrayerName = nextPrayer.name;
+        renderPrayerCards(nextPrayer.name);
+      }
+    }
+
+    async function loadAllData() {
+      const icon = document.getElementById('refreshIcon');
+      icon.classList.add('animate-spin');
+      try {
+        const res = await MihrabAPI.getAllData();
+        if (res.status === 'success') {
+          db = res.data;
+          renderPublicView();
+          renderCheckinView();
+          if (adminSession) renderAdminTable();
+        } else {
+          showToast(res.message || 'Gagal memuatkan data.', 'error');
+        }
+      } catch (err) {
+        showToast('Ralat sambungan ke Google Sheets.', 'error');
+      } finally {
+        icon.classList.remove('animate-spin');
+        lucide.createIcons();
+      }
+    }
+
+    // ==================== NAVIGATION ====================
+    function switchMainTab(tab) {
+      ['public', 'checkin', 'admin'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
+        const btn = document.getElementById(`nav-${t}`);
+        btn.className = t === tab
+          ? 'nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 bg-emerald-800 text-white'
+          : 'nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 text-emerald-200 hover:bg-emerald-900';
+      });
+      lucide.createIcons();
+    }
+
+    function switchPublicSubTab(tab) {
+      currentPublicTab = tab;
+      document.querySelectorAll('.pub-tab').forEach(b => {
+        b.className = 'pub-tab px-4 py-2 rounded-xl text-sm font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100';
+      });
+      document.getElementById(`pub-tab-${tab}`).className = 'pub-tab px-4 py-2 rounded-xl text-sm font-bold bg-emerald-700 text-white shadow-sm';
+      renderPublicView();
+    }
+
+    // ==================== RENDER: PAPARAN UMUM ====================
+    function badgeStatus(status, time, subName) {
+      if (status === 'Disahkan') {
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">Disahkan ${time || ''}</span>`;
+      }
+      if (status === 'Ganti') {
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">GANTI: ${subName || '-'} (${time || ''})</span>`;
+      }
+      return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500">Belum Disahkan</span>`;
+    }
+
+    function renderPublicView() {
+      const area = document.getElementById('publicContentArea');
+      const emptyMsg = `<p class="text-center text-slate-400 py-8 text-sm">Tiada rekod buat masa ini. Tambah rekod melalui Panel Master Admin.</p>`;
+
+      if (currentPublicTab === 'harian') {
+        const rows = db.Jadual_Harian || [];
+        if (!rows.length) { area.innerHTML = emptyMsg; return; }
+        area.innerHTML = `
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 text-slate-600 text-xs uppercase border-b">
+                <tr>
+                  <th class="py-3 px-4">Tarikh</th>
+                  <th class="py-3 px-4">Waktu</th>
+                  <th class="py-3 px-4">Imam & Status</th>
+                  <th class="py-3 px-4">Bilal & Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                ${rows.map(r => `
+                  <tr class="hover:bg-slate-50/70">
+                    <td class="py-3 px-4 font-medium text-slate-600">${r.Tarikh || '-'}</td>
+                    <td class="py-3 px-4 font-extrabold text-emerald-800">${r.Waktu || '-'}</td>
+                    <td class="py-3 px-4">
+                      <div class="font-bold text-slate-800">${r.Imam || '-'}</div>
+                      <div class="mt-1">${badgeStatus(r.Status_Imam, r.Masa_CheckIn_Imam, r.Pengganti_Imam)}</div>
+                    </td>
+                    <td class="py-3 px-4">
+                      <div class="font-bold text-slate-800">${r.Bilal || '-'}</div>
+                      <div class="mt-1">${badgeStatus(r.Status_Bilal, r.Masa_CheckIn_Bilal, r.Pengganti_Bilal)}</div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>`;
+      } else if (currentPublicTab === 'jumaat') {
+        const rows = db.Jadual_Jumaat || [];
+        if (!rows.length) { area.innerHTML = emptyMsg; return; }
+        area.innerHTML = buildSimpleTable(['Tarikh', 'Khatib / Imam', 'Bilal', 'Tajuk Khutbah'],
+          rows.map(r => [r.Tarikh, r.Khatib_Imam, r.Bilal, r.Tajuk_Khutbah]));
+      } else if (currentPublicTab === 'yasiin') {
+        const rows = db.Jadual_Yasiin || [];
+        if (!rows.length) { area.innerHTML = emptyMsg; return; }
+        area.innerHTML = buildSimpleTable(['Tarikh', 'Ketua Yasiin', 'Tahlil', 'Catatan'],
+          rows.map(r => [r.Tarikh, r.Ketua_Yasiin, r.Tahlil, r.Catatan]));
+      } else if (currentPublicTab === 'ramadhan') {
+        const rows = db.Jadual_Ramadhan || [];
+        if (!rows.length) { area.innerHTML = emptyMsg; return; }
+        area.innerHTML = buildSimpleTable(['Malam', 'Tarikh', 'Imam Terawih', 'Bilal Terawih', 'Penceramah'],
+          rows.map(r => [r.Malam, r.Tarikh, r.Imam_Terawih, r.Bilal_Terawih, r.Penceramah]));
+      } else if (currentPublicTab === 'program') {
+        const rows = db.Program_Tahunan || [];
+        if (!rows.length) { area.innerHTML = emptyMsg; return; }
+        area.innerHTML = buildSimpleTable(['Tarikh', 'Masa', 'Tajuk Program', 'Kategori', 'Penceramah', 'Lokasi'],
+          rows.map(r => [r.Tarikh, r.Masa, r.Tajuk, r.Kategori, r.Penceramah, r.Lokasi]));
+      }
+    }
+
+    function buildSimpleTable(headers, rows) {
+      return `
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-slate-600 text-xs uppercase border-b">
+              <tr>${headers.map(h => `<th class="py-3 px-4">${h}</th>`).join('')}</tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              ${rows.map(r => `<tr class="hover:bg-slate-50">${r.map((c, idx) => `<td class="py-3 px-4 ${idx === 0 ? 'font-bold text-emerald-800' : 'text-slate-700'}">${c || '-'}</td>`).join('')}</tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    // ==================== RENDER: PENGESAHAN KEHADIRAN ====================
+    function renderCheckinView() {
+      const container = document.getElementById('checkinList');
+      const filterDate = document.getElementById('checkinDateFilter').value;
+      let rows = db.Jadual_Harian || [];
+      if (filterDate) {
+        const filtered = rows.filter(r => r.Tarikh === filterDate);
+        if (filtered.length > 0) rows = filtered;
+      }
+
+      if (!rows.length) {
+        container.innerHTML = `<p class="col-span-3 text-center text-slate-400 py-8 text-sm">Tiada jadual harian ditemui.</p>`;
+        return;
+      }
+
+      container.innerHTML = rows.map(r => {
+        const imamLocked = r.Status_Imam === 'Disahkan' || r.Status_Imam === 'Ganti';
+        const bilalLocked = r.Status_Bilal === 'Disahkan' || r.Status_Bilal === 'Ganti';
+
+        return `
+          <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50/50 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+              <span class="font-extrabold text-emerald-800 text-base">${r.Waktu}</span>
+              <span class="text-xs font-semibold text-slate-500">${r.Tarikh}</span>
+            </div>
+
+            <!-- Slot Imam -->
+            <div class="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between gap-2">
+              <div>
+                <p class="text-[11px] font-bold uppercase text-slate-400">Imam Bertugas</p>
+                <p class="text-sm font-bold text-slate-800">${r.Imam || '-'}</p>
+                <div class="mt-1">${badgeStatus(r.Status_Imam, r.Masa_CheckIn_Imam, r.Pengganti_Imam)}</div>
+              </div>
+              ${imamLocked
+                ? `<span class="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-400 text-xs font-bold flex items-center gap-1"><i data-lucide="lock" class="w-3.5 h-3.5"></i> Terkunci</span>`
+                : `<button onclick="openCheckinModal('${r.ID}', 'Imam', '${r.Waktu}', '${r.Imam}')" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm">Sahkan</button>`
+              }
+            </div>
+
+            <!-- Slot Bilal -->
+            <div class="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between gap-2">
+              <div>
+                <p class="text-[11px] font-bold uppercase text-slate-400">Bilal Bertugas</p>
+                <p class="text-sm font-bold text-slate-800">${r.Bilal || '-'}</p>
+                <div class="mt-1">${badgeStatus(r.Status_Bilal, r.Masa_CheckIn_Bilal, r.Pengganti_Bilal)}</div>
+              </div>
+              ${bilalLocked
+                ? `<span class="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-400 text-xs font-bold flex items-center gap-1"><i data-lucide="lock" class="w-3.5 h-3.5"></i> Terkunci</span>`
+                : `<button onclick="openCheckinModal('${r.ID}', 'Bilal', '${r.Waktu}', '${r.Bilal}')" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm">Sahkan</button>`
+              }
+            </div>
+          </div>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function openCheckinModal(id, role, waktu, namaAsal) {
+      document.getElementById('ci-id').value = id;
+      document.getElementById('ci-role').value = role;
+      document.getElementById('ci-pin').value = '';
+      document.getElementById('ci-isSub').checked = false;
+      document.getElementById('ci-subName').value = '';
+      document.getElementById('ci-subReason').value = '';
+      document.getElementById('subFields').classList.add('hidden');
+      document.getElementById('checkinModalTitle').textContent = `Sahkan Kehadiran ${role} (${waktu})`;
+      document.getElementById('checkinModalSub').textContent = `Petugas dijadualkan: ${namaAsal}`;
+      document.getElementById('checkinModal').classList.remove('hidden');
+    }
+
+    function closeCheckinModal() {
+      document.getElementById('checkinModal').classList.add('hidden');
+    }
+
+    function toggleSubFields() {
+      const checked = document.getElementById('ci-isSub').checked;
+      document.getElementById('subFields').classList.toggle('hidden', !checked);
+      document.getElementById('ci-subName').required = checked;
+    }
+
+    async function submitCheckin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('ci-submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan...';
+      try {
+        const res = await MihrabAPI.checkin({
+          id: document.getElementById('ci-id').value,
+          role: document.getElementById('ci-role').value,
+          pin: document.getElementById('ci-pin').value,
+          isSubstitute: document.getElementById('ci-isSub').checked,
+          substituteName: document.getElementById('ci-subName').value,
+          substituteReason: document.getElementById('ci-subReason').value
+        });
+        if (res.status === 'success') {
+          showToast(res.message, 'success');
+          closeCheckinModal();
+          await loadAllData();
+        } else {
+          showToast(res.message || 'Gagal mengesahkan kehadiran.', 'error');
+        }
+      } catch (err) {
+        showToast('Ralat sambungan.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sahkan & Kunci';
+      }
+    }
+
+    // ==================== MASTER ADMIN (CRUD) ====================
+    async function handleAdminLogin(e) {
+      e.preventDefault();
+      const pin = document.getElementById('adminPinInput').value;
+      const btn = document.getElementById('adminLoginBtn');
+      btn.disabled = true;
+      btn.textContent = 'Mengesahkan...';
+      try {
+        const res = await MihrabAPI.login(pin);
+        if (res.status === 'success' && ['master admin', 'admin'].includes(res.user.Peranan.toLowerCase())) {
+          adminSession = { pin, user: res.user };
+          document.getElementById('adminWelcomeName').textContent = `${res.user.Nama} (${res.user.Peranan})`;
+          document.getElementById('adminLoginBox').classList.add('hidden');
+          document.getElementById('adminDashboard').classList.remove('hidden');
+          renderAdminTable();
+          showToast('Berjaya log masuk ke Panel Master Admin.');
+        } else {
+          showToast('PIN tidak sah atau bukan akaun Admin.', 'error');
+        }
+      } catch (err) {
+        showToast('Ralat sambungan.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Log Masuk';
+      }
+    }
+
+    function logoutAdmin() {
+      adminSession = null;
+      document.getElementById('adminPinInput').value = '';
+      document.getElementById('adminDashboard').classList.add('hidden');
+      document.getElementById('adminLoginBox').classList.remove('hidden');
+    }
+
+    function switchAdminSheet(sheetName) {
+      currentAdminSheet = sheetName;
+      document.querySelectorAll('.adm-tab').forEach(b => {
+        b.className = 'adm-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-600';
+      });
+      document.getElementById(`adm-tab-${sheetName}`).className = 'adm-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-700 text-white';
+      renderAdminTable();
+    }
+
+    function renderAdminTable() {
+      const container = document.getElementById('adminTableContainer');
+      const rows = db[currentAdminSheet] || [];
+      const schema = SHEET_SCHEMAS[currentAdminSheet];
+
+      if (!rows.length) {
+        container.innerHTML = `<p class="text-center text-slate-400 py-8 text-sm">Tiada rekod dalam ${currentAdminSheet}. Klik <strong>+ Tambah Rekod</strong> untuk mula.</p>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-slate-600 text-xs uppercase border-b">
+            <tr>
+              <th class="py-3 px-3">ID</th>
+              ${schema.filter(f => f.key !== 'PIN_Hash').map(f => `<th class="py-3 px-3">${f.label.split(' (')[0]}</th>`).join('')}
+              <th class="py-3 px-3 text-right">Tindakan</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            ${rows.map(r => `
+              <tr class="hover:bg-slate-50">
+                <td class="py-2.5 px-3 font-mono text-xs text-slate-500">${r.ID}</td>
+                ${schema.filter(f => f.key !== 'PIN_Hash').map(f => `<td class="py-2.5 px-3 font-medium text-slate-700">${r[f.key] || '-'}</td>`).join('')}
+                <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1">
+                  <button onclick="openCrudModal('update', '${r.ID}')" class="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold">Kemaskini</button>
+                  <button onclick="deleteRecord('${r.ID}')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold">Padam</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function openCrudModal(mode, id = null) {
+      crudMode = mode;
+      editingId = id;
+      const schema = SHEET_SCHEMAS[currentAdminSheet];
+      const existing = id ? (db[currentAdminSheet] || []).find(r => String(r.ID) === String(id)) : {};
+
+      document.getElementById('crudModalTitle').textContent = mode === 'create'
+        ? `Tambah Rekod (${currentAdminSheet.replace('_', ' ')})`
+        : `Kemaskini Rekod (${id})`;
+
+      document.getElementById('crudFields').innerHTML = schema.map(f => {
+        const val = existing[f.key] || '';
+        if (f.type === 'select') {
+          return `
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">${f.label}</label>
+              <select id="fld-${f.key}" ${f.required ? 'required' : ''} class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-600 outline-none">
+                ${f.options.map(opt => `<option value="${opt}" ${val === opt ? 'selected' : ''}>${opt || '-- Tiada / Reset --'}</option>`).join('')}
+              </select>
+            </div>`;
+        }
+        return `
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">${f.label}</label>
+            <input type="${f.type}" id="fld-${f.key}" value="${val}" ${f.required && !(mode === 'update' && f.key === 'PIN_Hash') ? 'required' : ''}
+              class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-600 outline-none">
+          </div>`;
+      }).join('');
+
+      document.getElementById('crudModal').classList.remove('hidden');
+    }
+
+    function closeCrudModal() {
+      document.getElementById('crudModal').classList.add('hidden');
+    }
+
+    async function submitCrudForm(e) {
+      e.preventDefault();
+      const btn = document.getElementById('crudSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan...';
+
+      const schema = SHEET_SCHEMAS[currentAdminSheet];
+      const payload = {};
+      if (crudMode === 'update') payload.ID = editingId;
+      schema.forEach(f => {
+        payload[f.key] = document.getElementById(`fld-${f.key}`).value;
+      });
+
+      try {
+        const res = crudMode === 'create'
+          ? await MihrabAPI.createRecord(currentAdminSheet, payload, adminSession.pin)
+          : await MihrabAPI.updateRecord(currentAdminSheet, payload, adminSession.pin);
+
+        if (res.status === 'success') {
+          showToast(res.message, 'success');
+          closeCrudModal();
+          await loadAllData();
+        } else {
+          showToast(res.message || 'Gagal menyimpan rekod.', 'error');
+        }
+      } catch (err) {
+        showToast('Ralat sambungan.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Simpan';
+      }
+    }
+
+    async function deleteRecord(id) {
+      if (!confirm(`Adakah anda pasti mahu memadam rekod ${id}?`)) return;
+      try {
+        const res = await MihrabAPI.deleteRecord(currentAdminSheet, id, adminSession.pin);
+        if (res.status === 'success') {
+          showToast(res.message, 'success');
+          await loadAllData();
+        } else {
+          showToast(res.message || 'Gagal memadam rekod.', 'error');
+        }
+      } catch (err) {
+        showToast('Ralat sambungan.', 'error');
+      }
+    }
+  </script>
+</body>
+</html>
